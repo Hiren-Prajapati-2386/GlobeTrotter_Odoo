@@ -3,6 +3,7 @@ import axios from 'axios';
 // Create an instance connecting to our local FastAPI server
 const api = axios.create({
     baseURL: 'http://localhost:8000',
+    withCredentials: true,
 });
 
 // Automatically attach the JWT token if the user is logged in

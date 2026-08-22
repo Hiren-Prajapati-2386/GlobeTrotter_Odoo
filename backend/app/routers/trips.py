@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
@@ -7,8 +7,12 @@ from app.models.user import User
 from app.schemas.trip_schemas import TripCreate, TripOut
 from app.core.dependencies import get_current_user
 import uuid
+import os
+from PIL import Image
+import io
 
 router = APIRouter(prefix="/api/trips", tags=["trips"])
+
 
 @router.post("/", response_model=TripOut, status_code=status.HTTP_201_CREATED)
 def create_trip(trip_in: TripCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -54,4 +58,41 @@ def update_trip(trip_id: int, trip_in: TripCreate, db: Session = Depends(get_db)
         
     db.commit()
     db.refresh(trip)
-    return trip
+    return trip
+
+@router.post("/upload")
+def upload_cover_photo(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file type. Only JPG, PNG, WEBP, and GIF are allowed."
+        )
+        
+    MAX_SIZE = 5 * 1024 * 1024 # 5MB
+    contents = file.file.read(MAX_SIZE + 1)
+    if len(contents) > MAX_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File is too large. Maximum size is 5MB."
+        )
+        
+    file.file.seek(0)
+    
+    try:
+        image = Image.open(io.BytesIO(contents))
+        ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        filepath = os.path.join("static", "uploads", filename)
+        
+        # Save stripping metadata
+        image.save(filepath, format=image.format)
+        
+        url = f"http://localhost:8000/static/uploads/{filename}"
+        return {"url": url}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process image: {str(e)}"
+        )
+

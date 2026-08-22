@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.trip import Trip
 from app.models.user import User
 from app.models.stop import Stop
-from app.models.trip_extras import TripActivity, TripCopy
+from app.models.trip_extras import TripActivity, TripCopy, TripShare
 from app.schemas.trip_schemas import TripOut
 from app.core.dependencies import get_current_user
 
@@ -13,26 +13,26 @@ router = APIRouter(prefix="/api/shared", tags=["shared"])
 
 @router.get("/{share_token}", response_model=TripOut)
 def get_shared_trip(share_token: str, db: Session = Depends(get_db)):
-    trip = db.query(Trip).filter(Trip.share_token == share_token).first()
-    
-    if not trip:
-        raise HTTPException(status_code=404, detail="Shared trip not found")
+    share = db.query(TripShare).filter(TripShare.share_token == share_token, TripShare.is_active == True).first()
+    if not share:
+        raise HTTPException(status_code=404, detail="Shared trip not found or link has been revoked")
         
-    if not trip.is_public:
-        raise HTTPException(status_code=403, detail="This trip is private")
+    trip = db.query(Trip).filter(Trip.id == share.trip_id).first()
+    if not trip or not trip.is_public:
+        raise HTTPException(status_code=404, detail="Shared trip not found or is private")
         
     return trip
 
 @router.post("/{share_token}/copy", response_model=TripOut, status_code=status.HTTP_201_CREATED)
 def copy_shared_trip(share_token: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    orig_trip = db.query(Trip).filter(Trip.share_token == share_token).first()
-    if not orig_trip:
-        raise HTTPException(status_code=404, detail="Shared trip not found")
+    share = db.query(TripShare).filter(TripShare.share_token == share_token, TripShare.is_active == True).first()
+    if not share:
+        raise HTTPException(status_code=404, detail="Shared trip not found or link has been revoked")
         
-    if not orig_trip.is_public:
-        raise HTTPException(status_code=403, detail="This trip is private")
+    orig_trip = db.query(Trip).filter(Trip.id == share.trip_id).first()
+    if not orig_trip or not orig_trip.is_public:
+        raise HTTPException(status_code=404, detail="Shared trip not found or is private")
         
-    new_share_token = str(uuid.uuid4().hex)
     copied_trip = Trip(
         user_id=current_user.id,
         name=f"Copy of {orig_trip.name}",
@@ -40,8 +40,7 @@ def copy_shared_trip(share_token: str, db: Session = Depends(get_db), current_us
         start_date=orig_trip.start_date,
         end_date=orig_trip.end_date,
         cover_photo_url=orig_trip.cover_photo_url,
-        is_public=False,
-        share_token=new_share_token
+        is_public=False
     )
     db.add(copied_trip)
     db.commit()
@@ -80,4 +79,66 @@ def copy_shared_trip(share_token: str, db: Session = Depends(get_db), current_us
     db.commit()
     db.refresh(copied_trip)
     
-    return copied_trip
+    return copied_trip
+
+@router.post("/trips/{trip_id}/share", response_model=str)
+def create_share_link(trip_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    trip.is_public = True
+    
+    share = db.query(TripShare).filter(TripShare.trip_id == trip_id).first()
+    if not share:
+        share = TripShare(
+            trip_id=trip_id,
+            share_token=str(uuid.uuid4().hex),
+            is_active=True
+        )
+        db.add(share)
+    else:
+        share.is_active = True
+        
+    db.commit()
+    db.refresh(share)
+    return share.share_token
+
+@router.delete("/trips/{trip_id}/share")
+def revoke_share_link(trip_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    trip.is_public = False
+    
+    share = db.query(TripShare).filter(TripShare.trip_id == trip_id).first()
+    if share:
+        db.delete(share)
+        
+    db.commit()
+    return {"detail": "Share token revoked and trip set to private"}
+
+@router.get("/trips/{trip_id}/share")
+def get_trip_share_token(trip_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    if not trip.is_public:
+        return {"share_token": None}
+        
+    share = db.query(TripShare).filter(TripShare.trip_id == trip_id, TripShare.is_active == True).first()
+    if not share:
+        share = TripShare(
+            trip_id=trip_id,
+            share_token=str(uuid.uuid4().hex),
+            is_active=True
+        )
+        db.add(share)
+        db.commit()
+        db.refresh(share)
+        
+    return {"share_token": share.share_token}
+
+

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, Date, Time, Text, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Numeric, Date, Time, Text, DateTime, ForeignKey, func, Boolean
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -29,6 +29,15 @@ class TripCopy(Base):
     __tablename__ = "trip_copies"
     
     id = Column(Integer, primary_key=True, index=True)
-    original_trip_id = Column(Integer, ForeignKey("trips.id"), nullable=False)
+    original_trip_id = Column(Integer, ForeignKey("trips.id", ondelete="SET NULL"), nullable=True)
     copied_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     copied_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class TripShare(Base):
+    __tablename__ = "trip_shares"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
+    share_token = Column(String(64), unique=True, index=True, nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

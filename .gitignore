@@ -60,4 +60,10 @@ problem stetment
 GlobeTrotter_Build_Blueprint.txt
 GlobeTrotter_Build_Blueprint.docx
 
+# User Uploads and static media
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
 
+# Temporary / Scratch Python scripts
+backend/test_upload.py
+backend/create_admin.py

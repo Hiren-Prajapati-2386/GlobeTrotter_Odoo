@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { Compass, Calendar, MapPin, DollarSign, Clock, Copy, Check, ChevronRight, Lock, Sparkles, LogIn } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
 
 const SharedTripPage = () => {
   const { shareToken } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [trip, setTrip] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -28,8 +30,7 @@ const SharedTripPage = () => {
   }, [shareToken]);
 
   const handleCopyTrip = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!user) {
       // Force redirect to login
       alert("Please log in or sign up first to copy this trip to your dashboard!");
       navigate('/login');

@@ -63,4 +63,24 @@ def reorder_stops(trip_id: int, stop_ids: List[int], db: Session = Depends(get_d
     db.commit()
     
     ordered_stops = db.query(Stop).filter(Stop.trip_id == trip_id).order_by(Stop.order_index).all()
-    return ordered_stops
+    return ordered_stops
+
+@router.put("/{stop_id}", response_model=StopOut)
+def update_stop(trip_id: int, stop_id: int, stop_in: StopCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+        
+    stop = db.query(Stop).filter(Stop.id == stop_id, Stop.trip_id == trip_id).first()
+    if not stop:
+        raise HTTPException(status_code=404, detail="Stop not found")
+        
+    stop.start_date = stop_in.start_date
+    stop.end_date = stop_in.end_date
+    stop.city_id = stop_in.city_id
+    stop.order_index = stop_in.order_index
+    
+    db.commit()
+    db.refresh(stop)
+    return stop
+

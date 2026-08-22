@@ -10,17 +10,28 @@ from app.models.trip_extras import TripActivity
 from app.schemas.destination_schemas import ActivityOut
 from app.schemas.trip_extras_schemas import TripActivityCreate, TripActivityUpdate, TripActivityOut
 from app.core.dependencies import get_current_user
+from app.core.rate_limiter import limit_search_requests
 
 router = APIRouter(prefix="/api/activities", tags=["activities"])
 
-@router.get("/", response_model=List[ActivityOut])
-def get_activities(city_id: int = None, category: str = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.get("/", response_model=List[ActivityOut], dependencies=[Depends(limit_search_requests)])
+
+def get_activities(city_id: int = None, category: str = None, search: str = None, max_cost: float = None, max_duration: int = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     query = db.query(Activity)
     
     if city_id:
         query = query.filter(Activity.city_id == city_id)
     if category:
-        query = query.filter(Activity.category == category)
+        query = query.filter(Activity.category.ilike(category))
+    if search:
+        query = query.filter(
+            (Activity.name.ilike(f"%{search}%")) |
+            (Activity.description.ilike(f"%{search}%"))
+        )
+    if max_cost is not None:
+        query = query.filter(Activity.cost <= max_cost)
+    if max_duration is not None:
+        query = query.filter(Activity.duration_minutes <= max_duration)
         
     return query.offset(skip).limit(limit).all()
 
@@ -39,7 +50,7 @@ def attach_activity_to_stop(stop_id: int, activity_in: TripActivityCreate, db: S
         
     trip = db.query(Trip).filter(Trip.id == stop.trip_id, Trip.user_id == current_user.id).first()
     if not trip:
-        raise HTTPException(status_code=403, detail="Not authorized to edit this trip's stops")
+        raise HTTPException(status_code=404, detail="Trip not found")
         
     act = db.query(Activity).filter(Activity.id == activity_in.activity_id).first()
     if not act:
@@ -67,7 +78,7 @@ def update_trip_activity(id: int, activity_in: TripActivityUpdate, db: Session =
     stop = db.query(Stop).filter(Stop.id == trip_act.stop_id).first()
     trip = db.query(Trip).filter(Trip.id == stop.trip_id, Trip.user_id == current_user.id).first()
     if not trip:
-        raise HTTPException(status_code=403, detail="Not authorized to edit this trip's activities")
+        raise HTTPException(status_code=404, detail="Trip not found")
         
     for key, value in activity_in.dict(exclude_unset=True).items():
         setattr(trip_act, key, value)
@@ -85,7 +96,7 @@ def detach_activity_from_stop(id: int, db: Session = Depends(get_db), current_us
     stop = db.query(Stop).filter(Stop.id == trip_act.stop_id).first()
     trip = db.query(Trip).filter(Trip.id == stop.trip_id, Trip.user_id == current_user.id).first()
     if not trip:
-        raise HTTPException(status_code=403, detail="Not authorized to edit this trip's activities")
+        raise HTTPException(status_code=404, detail="Trip not found")
         
     db.delete(trip_act)
     db.commit()

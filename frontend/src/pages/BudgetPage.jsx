@@ -183,13 +183,29 @@ const BudgetPage = () => {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex items-center gap-4">
-            <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-xl bg-emerald-50 text-emerald-600 shadow-sm">
+          <div className={`border rounded-2xl p-6 shadow-sm flex items-center gap-4 transition-colors ${
+            budgetData && parseFloat(budgetData.daily_average) > dailyLimit 
+              ? 'bg-rose-50 border-rose-200 text-rose-800' 
+              : 'bg-white border-slate-100'
+          }`}>
+            <div className={`p-3 rounded-xl shadow-sm ${
+              budgetData && parseFloat(budgetData.daily_average) > dailyLimit 
+                ? 'bg-rose-600 text-white' 
+                : 'bg-emerald-50 text-emerald-600'
+            }`}>
               <TrendingUp className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Daily Average</span>
-              <span className="text-2xl font-extrabold text-slate-800">
+              <span className={`text-xs font-bold uppercase tracking-wider block ${
+                budgetData && parseFloat(budgetData.daily_average) > dailyLimit 
+                  ? 'text-rose-400' 
+                  : 'text-slate-400'
+              }`}>Daily Average</span>
+              <span className={`text-2xl font-extrabold ${
+                budgetData && parseFloat(budgetData.daily_average) > dailyLimit 
+                  ? 'text-rose-700' 
+                  : 'text-slate-800'
+              }`}>
                 ${parseFloat(budgetData?.daily_average || 0).toFixed(2)}
               </span>
             </div>
@@ -212,6 +228,19 @@ const BudgetPage = () => {
           </div>
 
         </div>
+
+        {/* Daily Average Overbudget Alert */}
+        {budgetData && parseFloat(budgetData.daily_average) > dailyLimit && (
+          <div className="mb-8 bg-rose-50 border border-rose-200 rounded-3xl p-6 flex gap-4 items-center shadow-inner animate-slideUp">
+            <AlertTriangle className="w-8 h-8 text-rose-600 flex-shrink-0" />
+            <div>
+              <h4 className="font-extrabold text-rose-800 text-base">Daily budget limit exceeded!</h4>
+              <p className="text-xs text-rose-700 font-semibold mt-1">
+                Your daily average spending of <span className="underline font-black">${parseFloat(budgetData.daily_average).toFixed(2)}</span> exceeds your threshold limit of <span className="underline font-black">${dailyLimit}.00</span>. Consider reducing non-essential expenses.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Charts & Graphs Row */}
         {pieData.length > 0 && (
