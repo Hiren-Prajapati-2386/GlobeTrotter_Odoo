@@ -3,7 +3,7 @@ import { AuthContext } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
-import { Plus, Calendar, MapPin, Trash2, ArrowRight, Compass, Sparkles, X, Globe, Eye, DollarSign } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, ArrowRight, Compass, Sparkles, X, Globe, Eye, DollarSign, Edit3 } from 'lucide-react';
 
 const DashboardPage = () => {
   const { user } = useContext(AuthContext);
@@ -12,6 +12,8 @@ const DashboardPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedTripId, setSelectedTripId] = useState(null);
   
   // Create trip form state
   const [tripForm, setTripForm] = useState({
@@ -45,7 +47,7 @@ const DashboardPage = () => {
     fetchDashboardData();
   }, []);
 
-  const handleCreateTrip = async (e) => {
+  const handleSaveTrip = async (e) => {
     e.preventDefault();
     setError('');
     
@@ -62,13 +64,62 @@ const DashboardPage = () => {
         cover_photo_url: tripForm.cover_photo_url.trim() || 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80'
       };
 
-      await api.post('/api/trips/', finalForm);
+      if (isEditMode) {
+        await api.put(`/api/trips/${selectedTripId}`, finalForm);
+      } else {
+        await api.post('/api/trips/', finalForm);
+      }
       setIsModalOpen(false);
+      setIsEditMode(false);
+      setSelectedTripId(null);
       setTripForm({ name: '', description: '', start_date: '', end_date: '', cover_photo_url: '', is_public: false });
       fetchDashboardData(); // Refresh list
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create trip. Please try again.');
+      setError(err.response?.data?.detail || 'Failed to save trip. Please try again.');
     }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    setError('');
+    try {
+      const res = await api.post('/api/trips/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      setTripForm(prev => ({ ...prev, cover_photo_url: res.data.url }));
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to upload cover image.');
+    }
+  };
+
+  const openCreateModal = () => {
+    setIsEditMode(false);
+    setSelectedTripId(null);
+    setTripForm({ name: '', description: '', start_date: '', end_date: '', cover_photo_url: '', is_public: false });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (trip, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsEditMode(true);
+    setSelectedTripId(trip.id);
+    setTripForm({
+      name: trip.name,
+      description: trip.description || '',
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      cover_photo_url: trip.cover_photo_url || '',
+      is_public: trip.is_public
+    });
+    setIsModalOpen(true);
   };
 
   const handleDeleteTrip = async (tripId, e) => {
@@ -109,7 +160,7 @@ const DashboardPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-16">
+    <div className="min-h-screen bg-slate-50/50 pb-16 animate-fadeIn">
       <Navbar />
       
       <div className="max-w-7xl mx-auto px-6 mt-8">
@@ -131,7 +182,7 @@ const DashboardPage = () => {
           </div>
 
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openCreateModal}
             className="relative z-10 bg-white hover:bg-slate-50 text-brand font-bold px-6 py-3.5 rounded-2xl shadow-xl hover:shadow-2xl transition duration-200 flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -164,7 +215,7 @@ const DashboardPage = () => {
                   Your upcoming adventures will appear here. Start by planning your first multi-city trip.
                 </p>
                 <button
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={openCreateModal}
                   className="bg-brand text-white font-bold px-5 py-2.5 rounded-xl shadow-md hover:shadow-lg transition"
                 >
                   Create First Trip
@@ -177,7 +228,7 @@ const DashboardPage = () => {
                   return (
                     <div
                       key={trip.id}
-                      className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg hover-glow transition-all duration-300 relative flex flex-col h-full"
+                      className="group bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg hover-glow transition-all duration-300 relative flex flex-col h-full animate-slideUp"
                     >
                       {/* Cover Photo */}
                       <div className="h-44 overflow-hidden relative">
@@ -235,13 +286,23 @@ const DashboardPage = () => {
                               Open Trip <ArrowRight className="w-4 h-4" />
                             </Link>
 
-                            <button
-                              onClick={(e) => handleDeleteTrip(trip.id, e)}
-                              className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                              title="Delete Trip"
-                            >
-                              <Trash2 className="w-4.5 h-4.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => openEditModal(trip, e)}
+                                className="p-2 rounded-xl text-slate-400 hover:text-brand hover:bg-slate-50 transition"
+                                title="Edit Trip"
+                              >
+                                <Edit3 className="w-4.5 h-4.5" />
+                              </button>
+                              
+                              <button
+                                onClick={(e) => handleDeleteTrip(trip.id, e)}
+                                className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                                title="Delete Trip"
+                              >
+                                <Trash2 className="w-4.5 h-4.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -307,12 +368,14 @@ const DashboardPage = () => {
 
       {/* CREATE TRIP MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-slideUp">
             
             {/* Modal Header */}
             <div className="px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-2xl font-extrabold text-slate-800">Plan a New Adventure</h3>
+              <h3 className="text-2xl font-extrabold text-slate-800">
+                {isEditMode ? 'Edit Trip Details' : 'Plan a New Adventure'}
+              </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="p-1.5 rounded-full hover:bg-slate-200 text-slate-500 outline-none"
@@ -322,7 +385,7 @@ const DashboardPage = () => {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleCreateTrip} className="p-8 space-y-5 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleSaveTrip} className="p-8 space-y-5 max-h-[80vh] overflow-y-auto">
               {error && (
                 <div className="p-3.5 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-semibold text-center">
                   {error}
@@ -375,28 +438,40 @@ const DashboardPage = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Cover Photo URL (Optional)</label>
-                <input
-                  type="url"
-                  value={tripForm.cover_photo_url}
-                  onChange={(e) => setTripForm({ ...tripForm, cover_photo_url: e.target.value })}
-                  placeholder="Paste an Unsplash or online image link"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition mb-2"
-                />
-                
-                {/* presets */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {coverPresets.map((preset) => (
-                    <button
-                      key={preset.name}
-                      type="button"
-                      onClick={() => setTripForm({ ...tripForm, cover_photo_url: preset.url })}
-                      className="text-xs font-semibold px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition"
-                    >
-                      {preset.name}
-                    </button>
-                  ))}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Cover Photo URL (Optional)</label>
+                  <input
+                    type="url"
+                    value={tripForm.cover_photo_url}
+                    onChange={(e) => setTripForm({ ...tripForm, cover_photo_url: e.target.value })}
+                    placeholder="Paste an Unsplash or online image link"
+                    className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand focus:border-brand outline-none transition mb-2"
+                  />
+                  
+                  {/* presets */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {coverPresets.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => setTripForm({ ...tripForm, cover_photo_url: preset.url })}
+                        className="text-xs font-semibold px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition"
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200 border-dashed p-4 rounded-2xl">
+                  <label className="block text-xs font-extrabold text-slate-500 uppercase tracking-wide mb-2">Or Upload Image File</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand/10 file:text-brand hover:file:bg-brand/20 transition cursor-pointer"
+                  />
                 </div>
               </div>
 
@@ -425,7 +500,7 @@ const DashboardPage = () => {
                   type="submit"
                   className="px-6 py-2.5 rounded-xl bg-brand hover:bg-brand-dark text-white font-bold custom-gradient-bg shadow-md hover:shadow-lg transition"
                 >
-                  Plan Trip
+                  {isEditMode ? 'Save Changes' : 'Plan Trip'}
                 </button>
               </div>
             </form>
