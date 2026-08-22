@@ -59,7 +59,7 @@ const Navbar = () => {
           })}
 
           {/* Admin link */}
-          {user.is_admin && (
+          {user.email === 'admin@example.com' && (
             <Link
               to="/admin"
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
@@ -132,7 +132,7 @@ const Navbar = () => {
             );
           })}
 
-          {user.is_admin && (
+          {user.email === 'admin@example.com' && (
             <Link
               to="/admin"
               onClick={() => setMobileMenuOpen(false)}
