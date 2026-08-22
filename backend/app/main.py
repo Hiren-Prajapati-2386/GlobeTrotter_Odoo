@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth
+from app.routers import auth, trips, stops 
 
 app = FastAPI(title="GlobeTrotter API")
 
@@ -13,3 +13,6 @@ app.add_middleware(
 
 # Register the auth routes
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(trips.router)
+app.include_router(stops.router)
