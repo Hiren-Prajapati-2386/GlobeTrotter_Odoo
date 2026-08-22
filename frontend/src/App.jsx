@@ -10,6 +10,7 @@ import ProfilePage from './pages/ProfilePage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import CitiesPage from './pages/CitiesPage';
 import ActivitiesPage from './pages/ActivitiesPage';
+import LandingPage from './pages/LandingPage';
 
 function App() {
   return (
@@ -17,8 +18,10 @@ function App() {
       <Router>
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
           <Routes>
-            {/* Public Auth page */}
+            {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<AuthPage />} />
+            <Route path="/reset-password" element={<AuthPage />} />
             
             {/* Public share itinerary page */}
             <Route path="/shared/:shareToken" element={<SharedTripPage />} />
@@ -89,8 +92,7 @@ function App() {
             />
             
             {/* Default fallback */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
       </Router>
