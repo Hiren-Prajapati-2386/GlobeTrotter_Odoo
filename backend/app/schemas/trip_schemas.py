@@ -12,12 +12,18 @@ class StopBase(BaseModel):
 class StopCreate(StopBase):
     pass
 
+from app.schemas.destination_schemas import CityOut
+from app.schemas.trip_extras_schemas import TripActivityOut
+
 class StopOut(StopBase):
     id: int
     trip_id: int
+    city: Optional[CityOut] = None
+    trip_activities: List[TripActivityOut] = []
 
     class Config:
         from_attributes = True
+
 
 # --- TRIP SCHEMAS ---
 class TripBase(BaseModel):

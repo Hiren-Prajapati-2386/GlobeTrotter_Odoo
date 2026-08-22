@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Numeric, Date, Time, Text, DateTime, ForeignKey, func
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 class TripActivity(Base):
@@ -11,6 +12,9 @@ class TripActivity(Base):
     scheduled_time = Column(Time, nullable=True)
     cost_override = Column(Numeric(8,2), nullable=True)
     notes = Column(Text, nullable=True)
+    
+    activity = relationship("Activity")
+
 
 class Expense(Base):
     __tablename__ = "expenses"

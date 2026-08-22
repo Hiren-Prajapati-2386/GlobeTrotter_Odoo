@@ -44,3 +44,20 @@ frontend/.env
 *.njsproj
 *.sln
 *.sw?
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Windows OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Travel plan blueprints and problem statement
+problem stetment
+GlobeTrotter_Build_Blueprint.txt
+GlobeTrotter_Build_Blueprint.docx
+
+

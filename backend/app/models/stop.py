@@ -14,3 +14,4 @@ class Stop(Base):
     
     trip = relationship("Trip", back_populates="stops")
     city = relationship("City", back_populates="stops")
+    trip_activities = relationship("TripActivity", cascade="all, delete-orphan")
