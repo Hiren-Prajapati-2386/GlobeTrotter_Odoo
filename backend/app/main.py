@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, trips, stops, cities, activities, budget, shared
+from app.routers import auth, trips, stops, cities, activities, budget, shared, admin
 
 app = FastAPI(title="GlobeTrotter API")
 
@@ -19,3 +19,4 @@ app.include_router(cities.router)
 app.include_router(activities.router)
 app.include_router(budget.router)
 app.include_router(shared.router)
+app.include_router(admin.router)

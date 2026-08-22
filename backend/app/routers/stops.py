@@ -32,3 +32,35 @@ def get_stops(trip_id: int, db: Session = Depends(get_db), current_user: User = 
         
     stops = db.query(Stop).filter(Stop.trip_id == trip_id).order_by(Stop.order_index).all()
     return stops
+
+@router.delete("/{stop_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_stop(trip_id: int, stop_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found or unauthorized")
+        
+    stop = db.query(Stop).filter(Stop.id == stop_id, Stop.trip_id == trip_id).first()
+    if not stop:
+        raise HTTPException(status_code=404, detail="Stop not found")
+        
+    db.delete(stop)
+    db.commit()
+    return None
+
+@router.put("/reorder", response_model=List[StopOut])
+def reorder_stops(trip_id: int, stop_ids: List[int], db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == current_user.id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found or unauthorized")
+        
+    stops = db.query(Stop).filter(Stop.trip_id == trip_id).all()
+    stop_map = {s.id: s for s in stops}
+    
+    for index, sid in enumerate(stop_ids):
+        if sid in stop_map:
+            stop_map[sid].order_index = index
+            
+    db.commit()
+    
+    ordered_stops = db.query(Stop).filter(Stop.trip_id == trip_id).order_by(Stop.order_index).all()
+    return ordered_stops
